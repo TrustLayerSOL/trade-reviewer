@@ -2,16 +2,20 @@ import { KeyRound, Wallet } from 'lucide-react';
 
 interface SettingsPanelProps {
   walletAddress: string;
-  apiKey: string;
+  heliusApiKey: string;
+  openAiApiKey: string;
   onWalletAddressChange: (value: string) => void;
-  onApiKeyChange: (value: string) => void;
+  onHeliusApiKeyChange: (value: string) => void;
+  onOpenAiApiKeyChange: (value: string) => void;
 }
 
 export function SettingsPanel({
   walletAddress,
-  apiKey,
+  heliusApiKey,
+  openAiApiKey,
   onWalletAddressChange,
-  onApiKeyChange
+  onHeliusApiKeyChange,
+  onOpenAiApiKeyChange
 }: SettingsPanelProps) {
   return (
     <section className="panel settings-panel" aria-label="Wallet settings">
@@ -28,10 +32,22 @@ export function SettingsPanel({
           Helius key
         </span>
         <input
-          value={apiKey}
+          value={heliusApiKey}
           type="password"
           autoComplete="off"
-          onChange={(event) => onApiKeyChange(event.target.value)}
+          onChange={(event) => onHeliusApiKeyChange(event.target.value)}
+        />
+      </label>
+      <label>
+        <span>
+          <KeyRound size={16} />
+          OpenAI key
+        </span>
+        <input
+          value={openAiApiKey}
+          type="password"
+          autoComplete="off"
+          onChange={(event) => onOpenAiApiKeyChange(event.target.value)}
         />
       </label>
     </section>

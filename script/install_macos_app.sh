@@ -21,6 +21,11 @@ if [[ -f "$ROOT_DIR/.env.local" ]]; then
   if [[ -n "${HELIUS_KEY:-}" ]]; then
     defaults write "$BUNDLE_ID" heliusApiKey "$HELIUS_KEY"
   fi
+
+  OPENAI_KEY="$(grep -E '^OPENAI_API_KEY=' "$ROOT_DIR/.env.local" | tail -1 | cut -d= -f2- || true)"
+  if [[ -n "${OPENAI_KEY:-}" ]]; then
+    defaults write "$BUNDLE_ID" openAiApiKey "$OPENAI_KEY"
+  fi
 fi
 
 python3 "$ROOT_DIR/script/update_dock_icon.py" "$DEST_APP"
