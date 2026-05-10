@@ -236,6 +236,28 @@ input {
   margin-bottom: 4px;
 }
 
+.token-title {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  min-width: 0;
+}
+
+.token-title img {
+  width: 44px;
+  height: 44px;
+  border: 1px solid #d7d0c1;
+  border-radius: 8px;
+  object-fit: cover;
+  background: #f5f1e8;
+}
+
+.token-title h2,
+.token-title p {
+  overflow-wrap: anywhere;
+}
+
 .trade-card-header p,
 .empty-state p {
   margin-bottom: 0;

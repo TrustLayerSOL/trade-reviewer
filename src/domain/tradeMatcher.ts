@@ -3,6 +3,8 @@ import type { CompletedTrade, TradeEvent } from './trades';
 interface PositionBucket {
   tokenMint: string;
   symbol: string;
+  tokenName?: string;
+  tokenImageUrl?: string;
   entryTime: string;
   lastSource: TradeEvent['source'];
   tokenBought: number;
@@ -21,6 +23,8 @@ export function matchCompletedTrades(events: TradeEvent[]): CompletedTrade[] {
     buckets.set(event.tokenMint, bucket);
 
     bucket.symbol = event.symbol || bucket.symbol;
+    bucket.tokenName = bucket.tokenName || event.tokenName;
+    bucket.tokenImageUrl = bucket.tokenImageUrl || event.tokenImageUrl;
     bucket.lastSource = event.source;
     bucket.feesSol += event.feeSol;
 
@@ -42,6 +46,8 @@ function createBucket(event: TradeEvent): PositionBucket {
   return {
     tokenMint: event.tokenMint,
     symbol: event.symbol,
+    tokenName: event.tokenName,
+    tokenImageUrl: event.tokenImageUrl,
     entryTime: event.timestamp,
     lastSource: event.source,
     tokenBought: 0,
@@ -59,6 +65,8 @@ function toCompletedTrade(bucket: PositionBucket): CompletedTrade {
     id: `${bucket.tokenMint}-${bucket.entryTime}`,
     tokenMint: bucket.tokenMint,
     symbol: bucket.symbol,
+    tokenName: bucket.tokenName,
+    tokenImageUrl: bucket.tokenImageUrl,
     entryTime: bucket.entryTime,
     exitTime: isClosed ? bucket.exitTime : undefined,
     solInvested: round(bucket.solInvested),

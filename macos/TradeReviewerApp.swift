@@ -1,13 +1,26 @@
 import AppKit
 import WebKit
 
-final class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, WKScriptMessageHandler {
+    private let apiKeyPreference = "heliusApiKey"
     private var window: NSWindow?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
 
-        let webView = WKWebView(frame: .zero)
+        let configuration = WKWebViewConfiguration()
+        let userContentController = WKUserContentController()
+        userContentController.add(self, name: "tradeReviewerLog")
+        userContentController.add(self, name: "tradeReviewerStorage")
+        userContentController.addUserScript(WKUserScript(
+            source: startupScript(),
+            injectionTime: .atDocumentStart,
+            forMainFrameOnly: true
+        ))
+        configuration.userContentController = userContentController
+
+        let webView = WKWebView(frame: .zero, configuration: configuration)
+        webView.navigationDelegate = self
         webView.setValue(false, forKey: "drawsBackground")
 
         guard let indexURL = Bundle.main.url(forResource: "index", withExtension: "html", subdirectory: "dist"),
@@ -32,8 +45,45 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.activate(ignoringOtherApps: true)
     }
 
+    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        if message.name == "tradeReviewerStorage",
+           let payload = message.body as? [String: Any],
+           payload["type"] as? String == "saveApiKey",
+           let value = payload["value"] as? String {
+            UserDefaults.standard.set(value, forKey: apiKeyPreference)
+            return
+        }
+
+        if message.name == "tradeReviewerLog" {
+            NSLog("TradeReviewer web: \(message.body)")
+        }
+    }
+
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         true
+    }
+
+    private func startupScript() -> String {
+        let apiKey = UserDefaults.standard.string(forKey: apiKeyPreference) ?? ""
+        return """
+        window.__TRADE_REVIEWER_API_KEY__ = \(jsonString(apiKey));
+        window.onerror = function(message, source, line, column, error) {
+          window.webkit.messageHandlers.tradeReviewerLog.postMessage('JS error: ' + message + ' at ' + line + ':' + column);
+        };
+        window.addEventListener('unhandledrejection', function(event) {
+          window.webkit.messageHandlers.tradeReviewerLog.postMessage('Unhandled rejection: ' + event.reason);
+        });
+        """
+    }
+
+    private func jsonString(_ value: String) -> String {
+        guard let data = try? JSONSerialization.data(withJSONObject: [value]),
+              let json = String(data: data, encoding: .utf8),
+              json.count >= 2 else {
+            return "\"\""
+        }
+
+        return String(json.dropFirst().dropLast())
     }
 
     private func showError(_ message: String) {

@@ -6,6 +6,8 @@ export interface CompletedTrade {
   id: string;
   tokenMint: string;
   symbol: string;
+  tokenName?: string;
+  tokenImageUrl?: string;
   entryTime: string;
   exitTime?: string;
   solInvested: number;
@@ -35,6 +37,8 @@ export interface TradeEvent {
   signature: string;
   tokenMint: string;
   symbol: string;
+  tokenName?: string;
+  tokenImageUrl?: string;
   side: TradeSide;
   timestamp: string;
   tokenAmount: number;

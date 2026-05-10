@@ -8,15 +8,17 @@ import { parseTradeCsv } from './domain/csv';
 import { mapHeliusTransactions } from './domain/heliusMapper';
 import { reviewTrade } from './domain/reviewRules';
 import { summarizeReviews } from './domain/summary';
+import { enrichTradeEventsWithMetadata } from './domain/tokenMetadata';
 import { matchCompletedTrades } from './domain/tradeMatcher';
 import type { TradeEvent } from './domain/trades';
 import { fetchHeliusTransactions } from './services/helius';
+import { fetchTokenMetadata } from './services/tokenMetadata';
 
 const storedKey = 'trade-reviewer-helius-key';
 
 export function App() {
   const [walletAddress, setWalletAddress] = useState(defaultWalletAddress);
-  const [apiKey, setApiKeyState] = useState(() => localStorage.getItem(storedKey) ?? '');
+  const [apiKey, setApiKeyState] = useState(readStoredApiKey);
   const [events, setEvents] = useState<TradeEvent[]>(sampleEvents);
   const [status, setStatus] = useState('Sample review loaded.');
   const [error, setError] = useState('');
@@ -30,7 +32,7 @@ export function App() {
 
   const setApiKey = (value: string) => {
     setApiKeyState(value);
-    localStorage.setItem(storedKey, value);
+    writeStoredApiKey(value);
   };
 
   const loadSample = () => {
@@ -56,7 +58,12 @@ export function App() {
     try {
       const transactions = await fetchHeliusTransactions(walletAddress, apiKey);
       const parsed = mapHeliusTransactions(walletAddress, transactions);
-      setEvents(parsed);
+      const metadata = await fetchTokenMetadata(
+        parsed.map((event) => event.tokenMint),
+        apiKey
+      );
+      const enriched = enrichTradeEventsWithMetadata(parsed, metadata);
+      setEvents(enriched);
       setStatus(`Fetched ${parsed.length} wallet swap events from Helius.`);
       if (parsed.length === 0) {
         setError('No wallet swap events were found in the fetched Helius history.');
@@ -99,4 +106,31 @@ export function App() {
       </div>
     </main>
   );
+}
+
+function readStoredApiKey() {
+  const nativeKey = window.__TRADE_REVIEWER_API_KEY__;
+  if (typeof nativeKey === 'string' && nativeKey.length > 0) {
+    return nativeKey;
+  }
+
+  try {
+    return localStorage.getItem(storedKey) ?? '';
+  } catch {
+    return '';
+  }
+}
+
+function writeStoredApiKey(value: string) {
+  window.webkit?.messageHandlers?.tradeReviewerStorage?.postMessage({
+    type: 'saveApiKey',
+    value
+  });
+
+  try {
+    localStorage.setItem(storedKey, value);
+  } catch {
+    // WKWebView can disable localStorage for bundled file URLs. The typed key
+    // still works for the current app session when persistence is unavailable.
+  }
 }

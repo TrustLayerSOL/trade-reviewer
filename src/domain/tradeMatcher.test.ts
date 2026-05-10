@@ -8,6 +8,8 @@ const events: TradeEvent[] = [
     signature: 'sig-buy',
     tokenMint: 'MintA',
     symbol: 'MOON',
+    tokenName: 'Moon Runner',
+    tokenImageUrl: 'https://example.com/moon.png',
     side: 'buy',
     timestamp: '2026-05-09T10:00:00.000Z',
     tokenAmount: 1000,
@@ -37,6 +39,8 @@ describe('matchCompletedTrades', () => {
     expect(trades[0]).toMatchObject({
       tokenMint: 'MintA',
       symbol: 'MOON',
+      tokenName: 'Moon Runner',
+      tokenImageUrl: 'https://example.com/moon.png',
       entryTime: '2026-05-09T10:00:00.000Z',
       exitTime: '2026-05-09T10:22:00.000Z',
       solInvested: 1.4,

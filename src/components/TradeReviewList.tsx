@@ -19,9 +19,22 @@ export function TradeReviewList({ reviews }: TradeReviewListProps) {
       {reviews.map((review) => (
         <article className="trade-card" key={review.trade.id}>
           <div className="trade-card-header">
-            <div>
-              <h2>{review.trade.symbol}</h2>
-              <p>{formatDate(review.trade.entryTime)}</p>
+            <div className="token-title">
+              {review.trade.tokenImageUrl ? (
+                <img
+                  src={review.trade.tokenImageUrl}
+                  alt={`${tokenDisplayName(review.trade)} token image`}
+                  loading="lazy"
+                  referrerPolicy="no-referrer"
+                />
+              ) : null}
+              <div>
+                <h2>{tokenDisplayName(review.trade)}</h2>
+                <p>
+                  {review.trade.tokenName ? `${review.trade.symbol} · ` : ''}
+                  {formatDate(review.trade.entryTime)}
+                </p>
+              </div>
             </div>
             <span className={`outcome ${review.outcome}`}>{review.outcome}</span>
           </div>
@@ -55,6 +68,10 @@ function ReviewColumn({ title, items }: { title: string; items: string[] }) {
       </ul>
     </div>
   );
+}
+
+function tokenDisplayName(trade: TradeReview['trade']) {
+  return trade.tokenName || trade.symbol;
 }
 
 function formatDate(value: string) {

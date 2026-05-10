@@ -14,6 +14,7 @@ ICONSET="$BUILD_DIR/TradeReviewer.iconset"
 
 cd "$ROOT_DIR"
 npm run build
+python3 "$ROOT_DIR/script/inline_dist_assets.py"
 
 rm -rf "$APP_PATH" "$ICONSET"
 mkdir -p "$MACOS" "$RESOURCES" "$ICONSET"
@@ -55,6 +56,11 @@ cat > "$CONTENTS/Info.plist" <<PLIST
   <true/>
   <key>NSPrincipalClass</key>
   <string>NSApplication</string>
+  <key>NSAppTransportSecurity</key>
+  <dict>
+    <key>NSAllowsLocalNetworking</key>
+    <true/>
+  </dict>
 </dict>
 </plist>
 PLIST
