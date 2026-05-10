@@ -1,5 +1,5 @@
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 import { TradeReviewList } from './TradeReviewList';
 import type { TradeReview } from '../domain/trades';
 
@@ -58,5 +58,20 @@ describe('TradeReviewList', () => {
 
     expect(screen.getByRole('heading', { name: 'MOON' })).toBeTruthy();
     expect(screen.queryByRole('img')).toBeNull();
+  });
+
+  it('lets a trade be selected for AI review', () => {
+    const onSelectionChange = vi.fn();
+    render(
+      <TradeReviewList
+        reviews={[baseReview]}
+        selectedTradeIds={new Set()}
+        onTradeSelectionChange={onSelectionChange}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Select Moon Runner for AI review' }));
+
+    expect(onSelectionChange).toHaveBeenCalledWith('mint-a', true);
   });
 });

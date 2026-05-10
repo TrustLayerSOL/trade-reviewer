@@ -26,6 +26,11 @@ if [[ -f "$ROOT_DIR/.env.local" ]]; then
   if [[ -n "${GOOGLE_AI_KEY:-}" ]]; then
     defaults write "$BUNDLE_ID" googleAiApiKey "$GOOGLE_AI_KEY"
   fi
+
+  GROQ_KEY="$(grep -E '^GROQ_API_KEY=' "$ROOT_DIR/.env.local" | tail -1 | cut -d= -f2- || true)"
+  if [[ -n "${GROQ_KEY:-}" ]]; then
+    defaults write "$BUNDLE_ID" groqApiKey "$GROQ_KEY"
+  fi
 fi
 
 python3 "$ROOT_DIR/script/update_dock_icon.py" "$DEST_APP"

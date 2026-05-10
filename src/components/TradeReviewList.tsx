@@ -2,9 +2,11 @@ import type { TradeReview } from '../domain/trades';
 
 interface TradeReviewListProps {
   reviews: TradeReview[];
+  selectedTradeIds?: ReadonlySet<string>;
+  onTradeSelectionChange?: (tradeId: string, selected: boolean) => void;
 }
 
-export function TradeReviewList({ reviews }: TradeReviewListProps) {
+export function TradeReviewList({ reviews, selectedTradeIds, onTradeSelectionChange }: TradeReviewListProps) {
   if (reviews.length === 0) {
     return (
       <section className="empty-state">
@@ -16,27 +18,44 @@ export function TradeReviewList({ reviews }: TradeReviewListProps) {
 
   return (
     <section className="trade-list" aria-label="Trade reviews">
-      {reviews.map((review) => (
-        <article className="trade-card" key={review.trade.id}>
+      {reviews.map((review) => {
+        const displayName = tokenDisplayName(review.trade);
+        const selected = selectedTradeIds?.has(review.trade.id) ?? false;
+
+        return (
+        <article className={`trade-card${selected ? ' selected' : ''}`} key={review.trade.id}>
           <div className="trade-card-header">
             <div className="token-title">
               {review.trade.tokenImageUrl ? (
                 <img
                   src={review.trade.tokenImageUrl}
-                  alt={`${tokenDisplayName(review.trade)} token image`}
+                  alt={`${displayName} token image`}
                   loading="lazy"
                   referrerPolicy="no-referrer"
                 />
               ) : null}
               <div>
-                <h2>{tokenDisplayName(review.trade)}</h2>
+                <h2>{displayName}</h2>
                 <p>
                   {review.trade.tokenName ? `${review.trade.symbol} · ` : ''}
                   {formatDate(review.trade.entryTime)}
                 </p>
               </div>
             </div>
-            <span className={`outcome ${review.outcome}`}>{review.outcome}</span>
+            <div className="trade-card-actions">
+              {onTradeSelectionChange ? (
+                <label className="trade-select">
+                  <input
+                    type="checkbox"
+                    checked={selected}
+                    aria-label={`Select ${displayName} for AI review`}
+                    onChange={(event) => onTradeSelectionChange(review.trade.id, event.currentTarget.checked)}
+                  />
+                  AI
+                </label>
+              ) : null}
+              <span className={`outcome ${review.outcome}`}>{review.outcome}</span>
+            </div>
           </div>
           <div className="trade-numbers">
             <span>In: {review.trade.solInvested.toFixed(3)} SOL</span>
@@ -52,7 +71,8 @@ export function TradeReviewList({ reviews }: TradeReviewListProps) {
           </div>
           <p className="next-action">{review.nextAction}</p>
         </article>
-      ))}
+        );
+      })}
     </section>
   );
 }

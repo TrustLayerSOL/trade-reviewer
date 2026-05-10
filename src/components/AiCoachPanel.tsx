@@ -6,10 +6,13 @@ interface AiCoachPanelProps {
   loading: boolean;
   disabled: boolean;
   error?: string;
+  selectionCount: number;
   onReview: () => void;
 }
 
-export function AiCoachPanel({ review, loading, disabled, error, onReview }: AiCoachPanelProps) {
+export function AiCoachPanel({ review, loading, disabled, error, selectionCount, onReview }: AiCoachPanelProps) {
+  const selectionLabel = selectionCount === 1 ? '1 selected trade' : `${selectionCount} selected trades`;
+
   return (
     <section className="panel ai-coach-panel" aria-label="AI coach review">
       <div className="ai-coach-header">
@@ -19,6 +22,7 @@ export function AiCoachPanel({ review, loading, disabled, error, onReview }: AiC
             AI coach
           </span>
           <h2>{review?.headline ?? 'Session readout'}</h2>
+          <p className="ai-selection-count">{selectionLabel}</p>
         </div>
         <button type="button" onClick={onReview} disabled={disabled || loading}>
           <BrainCircuit size={17} />
@@ -39,7 +43,7 @@ export function AiCoachPanel({ review, loading, disabled, error, onReview }: AiC
         </div>
       ) : (
         <p className="ai-placeholder">
-          Run this after loading wallet trades to get a plain-English coach summary.
+          Select one or more trades, then run the AI coach for a focused readout.
         </p>
       )}
     </section>

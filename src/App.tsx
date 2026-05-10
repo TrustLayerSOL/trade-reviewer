@@ -20,12 +20,15 @@ import { fetchTokenMetadata } from './services/tokenMetadata';
 
 const heliusStoredKey = 'trade-reviewer-helius-key';
 const googleAiStoredKey = 'trade-reviewer-google-ai-key';
+const groqStoredKey = 'trade-reviewer-groq-key';
 
 export function App() {
   const [walletAddress, setWalletAddress] = useState(defaultWalletAddress);
   const [heliusApiKey, setHeliusApiKeyState] = useState(() => readStoredApiKey('helius'));
   const [googleAiApiKey, setGoogleAiApiKeyState] = useState(() => readStoredApiKey('googleAi'));
+  const [groqApiKey, setGroqApiKeyState] = useState(() => readStoredApiKey('groq'));
   const [events, setEvents] = useState<TradeEvent[]>(sampleEvents);
+  const [selectedTradeIds, setSelectedTradeIds] = useState<ReadonlySet<string>>(() => new Set());
   const [aiCoachReview, setAiCoachReview] = useState<AiCoachReview | null>(null);
   const [status, setStatus] = useState('Sample review loaded.');
   const [error, setError] = useState('');
@@ -38,6 +41,11 @@ export function App() {
     [events]
   );
   const summary = useMemo(() => summarizeReviews(reviews), [reviews]);
+  const selectedReviews = useMemo(
+    () => reviews.filter((review) => selectedTradeIds.has(review.trade.id)),
+    [reviews, selectedTradeIds]
+  );
+  const selectedSummary = useMemo(() => summarizeReviews(selectedReviews), [selectedReviews]);
 
   const setHeliusApiKey = (value: string) => {
     setHeliusApiKeyState(value);
@@ -50,11 +58,32 @@ export function App() {
     setAiError('');
   };
 
+  const setGroqApiKey = (value: string) => {
+    setGroqApiKeyState(value);
+    writeStoredApiKey('groq', value);
+    setAiError('');
+  };
+
   const replaceEvents = (nextEvents: TradeEvent[], nextStatus: string) => {
     setEvents(nextEvents);
+    setSelectedTradeIds(new Set());
     setAiCoachReview(null);
     setAiError('');
     setStatus(nextStatus);
+  };
+
+  const setTradeSelected = (tradeId: string, selected: boolean) => {
+    setSelectedTradeIds((current) => {
+      const next = new Set(current);
+      if (selected) {
+        next.add(tradeId);
+      } else {
+        next.delete(tradeId);
+      }
+      return next;
+    });
+    setAiCoachReview(null);
+    setAiError('');
   };
 
   const loadSample = () => {
@@ -98,10 +127,14 @@ export function App() {
     setAiLoading(true);
     setAiError('');
     try {
-      const payload = buildAiCoachPayload(reviews, summary);
-      const coachReview = await fetchAiCoachReview(payload, googleAiApiKey);
+      if (selectedReviews.length === 0) {
+        throw new Error('Select one or more trades before running the AI coach.');
+      }
+
+      const payload = buildAiCoachPayload(selectedReviews, selectedSummary);
+      const coachReview = await fetchAiCoachReview(payload, { googleAiApiKey, groqApiKey });
       setAiCoachReview(coachReview);
-      setStatus('AI coach review updated.');
+      setStatus(`AI coach review updated for ${selectedReviews.length} selected trade${selectedReviews.length === 1 ? '' : 's'}.`);
     } catch (caught) {
       setAiError(caught instanceof Error ? caught.message : 'AI coach review failed.');
     } finally {
@@ -125,9 +158,11 @@ export function App() {
             walletAddress={walletAddress}
             heliusApiKey={heliusApiKey}
             googleAiApiKey={googleAiApiKey}
+            groqApiKey={groqApiKey}
             onWalletAddressChange={setWalletAddress}
             onHeliusApiKeyChange={setHeliusApiKey}
             onGoogleAiApiKeyChange={setGoogleAiApiKey}
+            onGroqApiKeyChange={setGroqApiKey}
           />
           <ImportPanel loading={loading} onLoadSample={loadSample} onFetchWallet={fetchWallet} onImportCsv={importCsv} />
           <section className="panel status-panel">
@@ -140,33 +175,36 @@ export function App() {
           <AiCoachPanel
             review={aiCoachReview}
             loading={aiLoading}
-            disabled={reviews.length === 0 || loading}
+            disabled={selectedReviews.length === 0 || loading}
             error={aiError}
+            selectionCount={selectedReviews.length}
             onReview={runAiCoachReview}
           />
-          <TradeReviewList reviews={reviews} />
+          <TradeReviewList
+            reviews={reviews}
+            selectedTradeIds={selectedTradeIds}
+            onTradeSelectionChange={setTradeSelected}
+          />
         </div>
       </div>
     </main>
   );
 }
 
-function readStoredApiKey(key: 'helius' | 'googleAi') {
-  const nativeKey = key === 'helius'
-    ? window.__TRADE_REVIEWER_API_KEY__
-    : window.__TRADE_REVIEWER_GOOGLE_AI_API_KEY__;
+function readStoredApiKey(key: 'helius' | 'googleAi' | 'groq') {
+  const nativeKey = nativeStoredApiKey(key);
   if (typeof nativeKey === 'string' && nativeKey.length > 0) {
     return nativeKey;
   }
 
   try {
-    return localStorage.getItem(key === 'helius' ? heliusStoredKey : googleAiStoredKey) ?? '';
+    return localStorage.getItem(localStorageKey(key)) ?? '';
   } catch {
     return '';
   }
 }
 
-function writeStoredApiKey(key: 'helius' | 'googleAi', value: string) {
+function writeStoredApiKey(key: 'helius' | 'googleAi' | 'groq', value: string) {
   window.webkit?.messageHandlers?.tradeReviewerStorage?.postMessage({
     type: 'saveApiKey',
     key,
@@ -174,9 +212,21 @@ function writeStoredApiKey(key: 'helius' | 'googleAi', value: string) {
   });
 
   try {
-    localStorage.setItem(key === 'helius' ? heliusStoredKey : googleAiStoredKey, value);
+    localStorage.setItem(localStorageKey(key), value);
   } catch {
     // WKWebView can disable localStorage for bundled file URLs. The typed key
     // still works for the current app session when persistence is unavailable.
   }
+}
+
+function nativeStoredApiKey(key: 'helius' | 'googleAi' | 'groq') {
+  if (key === 'helius') return window.__TRADE_REVIEWER_API_KEY__;
+  if (key === 'googleAi') return window.__TRADE_REVIEWER_GOOGLE_AI_API_KEY__;
+  return window.__TRADE_REVIEWER_GROQ_API_KEY__;
+}
+
+function localStorageKey(key: 'helius' | 'googleAi' | 'groq') {
+  if (key === 'helius') return heliusStoredKey;
+  if (key === 'googleAi') return googleAiStoredKey;
+  return groqStoredKey;
 }

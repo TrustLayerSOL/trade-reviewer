@@ -15,7 +15,7 @@ const review: AiCoachReview = {
 
 describe('AiCoachPanel', () => {
   it('renders the coach result', () => {
-    render(<AiCoachPanel review={review} loading={false} disabled={false} onReview={vi.fn()} />);
+    render(<AiCoachPanel review={review} loading={false} disabled={false} selectionCount={1} onReview={vi.fn()} />);
 
     expect(screen.getByRole('heading', { name: 'Good profit, weak journaling' })).toBeTruthy();
     expect(screen.getByText('Write the exit before entering.')).toBeTruthy();
@@ -23,7 +23,7 @@ describe('AiCoachPanel', () => {
   });
 
   it('disables review while loading or unavailable', () => {
-    render(<AiCoachPanel review={null} loading disabled onReview={vi.fn()} />);
+    render(<AiCoachPanel review={null} loading disabled selectionCount={0} onReview={vi.fn()} />);
 
     expect(screen.getByRole<HTMLButtonElement>('button', { name: /reviewing/i }).disabled).toBe(true);
   });
