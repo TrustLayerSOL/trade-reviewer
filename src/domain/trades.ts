@@ -27,3 +27,18 @@ export interface TradeReview {
   didWrong: string[];
   nextAction: string;
 }
+
+export type TradeSide = 'buy' | 'sell';
+
+export interface TradeEvent {
+  id: string;
+  signature: string;
+  tokenMint: string;
+  symbol: string;
+  side: TradeSide;
+  timestamp: string;
+  tokenAmount: number;
+  solAmount: number;
+  feeSol: number;
+  source: TradeSource;
+}
