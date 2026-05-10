@@ -15,16 +15,16 @@ import { enrichTradeEventsWithMetadata } from './domain/tokenMetadata';
 import { matchCompletedTrades } from './domain/tradeMatcher';
 import type { TradeEvent } from './domain/trades';
 import { fetchHeliusTransactions } from './services/helius';
-import { fetchAiCoachReview } from './services/openaiCoach';
+import { fetchAiCoachReview } from './services/googleAiCoach';
 import { fetchTokenMetadata } from './services/tokenMetadata';
 
 const heliusStoredKey = 'trade-reviewer-helius-key';
-const openAiStoredKey = 'trade-reviewer-openai-key';
+const googleAiStoredKey = 'trade-reviewer-google-ai-key';
 
 export function App() {
   const [walletAddress, setWalletAddress] = useState(defaultWalletAddress);
   const [heliusApiKey, setHeliusApiKeyState] = useState(() => readStoredApiKey('helius'));
-  const [openAiApiKey, setOpenAiApiKeyState] = useState(() => readStoredApiKey('openai'));
+  const [googleAiApiKey, setGoogleAiApiKeyState] = useState(() => readStoredApiKey('googleAi'));
   const [events, setEvents] = useState<TradeEvent[]>(sampleEvents);
   const [aiCoachReview, setAiCoachReview] = useState<AiCoachReview | null>(null);
   const [status, setStatus] = useState('Sample review loaded.');
@@ -44,9 +44,9 @@ export function App() {
     writeStoredApiKey('helius', value);
   };
 
-  const setOpenAiApiKey = (value: string) => {
-    setOpenAiApiKeyState(value);
-    writeStoredApiKey('openai', value);
+  const setGoogleAiApiKey = (value: string) => {
+    setGoogleAiApiKeyState(value);
+    writeStoredApiKey('googleAi', value);
     setAiError('');
   };
 
@@ -99,7 +99,7 @@ export function App() {
     setAiError('');
     try {
       const payload = buildAiCoachPayload(reviews, summary);
-      const coachReview = await fetchAiCoachReview(payload, openAiApiKey);
+      const coachReview = await fetchAiCoachReview(payload, googleAiApiKey);
       setAiCoachReview(coachReview);
       setStatus('AI coach review updated.');
     } catch (caught) {
@@ -124,10 +124,10 @@ export function App() {
           <SettingsPanel
             walletAddress={walletAddress}
             heliusApiKey={heliusApiKey}
-            openAiApiKey={openAiApiKey}
+            googleAiApiKey={googleAiApiKey}
             onWalletAddressChange={setWalletAddress}
             onHeliusApiKeyChange={setHeliusApiKey}
-            onOpenAiApiKeyChange={setOpenAiApiKey}
+            onGoogleAiApiKeyChange={setGoogleAiApiKey}
           />
           <ImportPanel loading={loading} onLoadSample={loadSample} onFetchWallet={fetchWallet} onImportCsv={importCsv} />
           <section className="panel status-panel">
@@ -151,22 +151,22 @@ export function App() {
   );
 }
 
-function readStoredApiKey(key: 'helius' | 'openai') {
+function readStoredApiKey(key: 'helius' | 'googleAi') {
   const nativeKey = key === 'helius'
     ? window.__TRADE_REVIEWER_API_KEY__
-    : window.__TRADE_REVIEWER_OPENAI_API_KEY__;
+    : window.__TRADE_REVIEWER_GOOGLE_AI_API_KEY__;
   if (typeof nativeKey === 'string' && nativeKey.length > 0) {
     return nativeKey;
   }
 
   try {
-    return localStorage.getItem(key === 'helius' ? heliusStoredKey : openAiStoredKey) ?? '';
+    return localStorage.getItem(key === 'helius' ? heliusStoredKey : googleAiStoredKey) ?? '';
   } catch {
     return '';
   }
 }
 
-function writeStoredApiKey(key: 'helius' | 'openai', value: string) {
+function writeStoredApiKey(key: 'helius' | 'googleAi', value: string) {
   window.webkit?.messageHandlers?.tradeReviewerStorage?.postMessage({
     type: 'saveApiKey',
     key,
@@ -174,7 +174,7 @@ function writeStoredApiKey(key: 'helius' | 'openai', value: string) {
   });
 
   try {
-    localStorage.setItem(key === 'helius' ? heliusStoredKey : openAiStoredKey, value);
+    localStorage.setItem(key === 'helius' ? heliusStoredKey : googleAiStoredKey, value);
   } catch {
     // WKWebView can disable localStorage for bundled file URLs. The typed key
     // still works for the current app session when persistence is unavailable.

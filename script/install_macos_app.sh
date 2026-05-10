@@ -22,9 +22,9 @@ if [[ -f "$ROOT_DIR/.env.local" ]]; then
     defaults write "$BUNDLE_ID" heliusApiKey "$HELIUS_KEY"
   fi
 
-  OPENAI_KEY="$(grep -E '^OPENAI_API_KEY=' "$ROOT_DIR/.env.local" | tail -1 | cut -d= -f2- || true)"
-  if [[ -n "${OPENAI_KEY:-}" ]]; then
-    defaults write "$BUNDLE_ID" openAiApiKey "$OPENAI_KEY"
+  GOOGLE_AI_KEY="$(grep -E '^GEMINI_API_KEY=' "$ROOT_DIR/.env.local" | tail -1 | cut -d= -f2- || true)"
+  if [[ -n "${GOOGLE_AI_KEY:-}" ]]; then
+    defaults write "$BUNDLE_ID" googleAiApiKey "$GOOGLE_AI_KEY"
   fi
 fi
 

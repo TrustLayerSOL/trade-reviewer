@@ -3,7 +3,8 @@ import WebKit
 
 final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, WKScriptMessageHandler {
     private let heliusApiKeyPreference = "heliusApiKey"
-    private let openAiApiKeyPreference = "openAiApiKey"
+    private let googleAiApiKeyPreference = "googleAiApiKey"
+    private let googleAiModel = "gemini-2.5-flash"
     private var window: NSWindow?
     private weak var webView: WKWebView?
 
@@ -14,7 +15,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         let userContentController = WKUserContentController()
         userContentController.add(self, name: "tradeReviewerLog")
         userContentController.add(self, name: "tradeReviewerStorage")
-        userContentController.add(self, name: "tradeReviewerOpenAI")
+        userContentController.add(self, name: "tradeReviewerGoogleAI")
         userContentController.addUserScript(WKUserScript(
             source: startupScript(),
             injectionTime: .atDocumentStart,
@@ -55,15 +56,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
            payload["type"] as? String == "saveApiKey",
            let value = payload["value"] as? String {
             let key = payload["key"] as? String
-            UserDefaults.standard.set(value, forKey: key == "openai" ? openAiApiKeyPreference : heliusApiKeyPreference)
+            UserDefaults.standard.set(value, forKey: key == "googleAi" ? googleAiApiKeyPreference : heliusApiKeyPreference)
             return
         }
 
-        if message.name == "tradeReviewerOpenAI",
+        if message.name == "tradeReviewerGoogleAI",
            let payload = message.body as? [String: Any],
            let requestId = payload["id"] as? String,
            let requestPayload = payload["payload"] as? [String: Any] {
-            sendOpenAIRequest(id: requestId, payload: requestPayload)
+            sendGoogleAIRequest(id: requestId, payload: requestPayload)
             return
         }
 
@@ -78,22 +79,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
 
     private func startupScript() -> String {
         let heliusApiKey = UserDefaults.standard.string(forKey: heliusApiKeyPreference) ?? ""
-        let openAiApiKey = UserDefaults.standard.string(forKey: openAiApiKeyPreference) ?? ""
+        let googleAiApiKey = UserDefaults.standard.string(forKey: googleAiApiKeyPreference) ?? ""
         return """
         window.__TRADE_REVIEWER_API_KEY__ = \(jsonString(heliusApiKey));
-        window.__TRADE_REVIEWER_OPENAI_API_KEY__ = \(jsonString(openAiApiKey));
-        window.__TRADE_REVIEWER_OPENAI_CALLBACKS__ = {};
-        window.__TRADE_REVIEWER_OPENAI_REQUEST__ = function(payload) {
+        window.__TRADE_REVIEWER_GOOGLE_AI_API_KEY__ = \(jsonString(googleAiApiKey));
+        window.__TRADE_REVIEWER_GOOGLE_AI_CALLBACKS__ = {};
+        window.__TRADE_REVIEWER_GOOGLE_AI_REQUEST__ = function(payload) {
           return new Promise(function(resolve, reject) {
             var id = (window.crypto && window.crypto.randomUUID) ? window.crypto.randomUUID() : String(Date.now()) + Math.random();
-            window.__TRADE_REVIEWER_OPENAI_CALLBACKS__[id] = { resolve: resolve, reject: reject };
-            window.webkit.messageHandlers.tradeReviewerOpenAI.postMessage({ id: id, payload: payload });
+            window.__TRADE_REVIEWER_GOOGLE_AI_CALLBACKS__[id] = { resolve: resolve, reject: reject };
+            window.webkit.messageHandlers.tradeReviewerGoogleAI.postMessage({ id: id, payload: payload });
           });
         };
-        window.__TRADE_REVIEWER_OPENAI_RESOLVE__ = function(id, result) {
-          var callback = window.__TRADE_REVIEWER_OPENAI_CALLBACKS__[id];
+        window.__TRADE_REVIEWER_GOOGLE_AI_RESOLVE__ = function(id, result) {
+          var callback = window.__TRADE_REVIEWER_GOOGLE_AI_CALLBACKS__[id];
           if (!callback) return;
-          delete window.__TRADE_REVIEWER_OPENAI_CALLBACKS__[id];
+          delete window.__TRADE_REVIEWER_GOOGLE_AI_CALLBACKS__[id];
           if (result && result.error) {
             callback.reject(new Error(result.error));
           } else {
@@ -109,48 +110,49 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         """
     }
 
-    private func sendOpenAIRequest(id: String, payload: [String: Any]) {
-        let apiKey = UserDefaults.standard.string(forKey: openAiApiKeyPreference) ?? ""
+    private func sendGoogleAIRequest(id: String, payload: [String: Any]) {
+        let apiKey = UserDefaults.standard.string(forKey: googleAiApiKeyPreference) ?? ""
         guard !apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            resolveOpenAIRequest(id: id, result: ["error": "Add an OpenAI API key before running the AI coach."])
+            resolveGoogleAIRequest(id: id, result: ["error": "Add a Google AI API key before running the AI coach."])
             return
         }
 
         guard JSONSerialization.isValidJSONObject(payload),
               let body = try? JSONSerialization.data(withJSONObject: payload) else {
-            resolveOpenAIRequest(id: id, result: ["error": "The OpenAI request payload was invalid."])
+            resolveGoogleAIRequest(id: id, result: ["error": "The Google AI request payload was invalid."])
             return
         }
 
-        var request = URLRequest(url: URL(string: "https://api.openai.com/v1/responses")!)
+        let endpoint = "https://generativelanguage.googleapis.com/v1beta/models/\(googleAiModel):generateContent"
+        var request = URLRequest(url: URL(string: endpoint)!)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("Bearer \(apiKey.trimmingCharacters(in: .whitespacesAndNewlines))", forHTTPHeaderField: "Authorization")
+        request.setValue(apiKey.trimmingCharacters(in: .whitespacesAndNewlines), forHTTPHeaderField: "x-goog-api-key")
         request.httpBody = body
 
         URLSession.shared.dataTask(with: request) { data, response, error in
             if let error {
-                self.resolveOpenAIRequest(id: id, result: ["error": error.localizedDescription])
+                self.resolveGoogleAIRequest(id: id, result: ["error": error.localizedDescription])
                 return
             }
 
             let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 0
             guard let data else {
-                self.resolveOpenAIRequest(id: id, result: ["error": "OpenAI returned an empty response."])
+                self.resolveGoogleAIRequest(id: id, result: ["error": "Google AI returned an empty response."])
                 return
             }
 
             let parsed = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
             if !(200...299).contains(statusCode) {
-                self.resolveOpenAIRequest(id: id, result: ["error": self.openAIErrorMessage(parsed, statusCode: statusCode)])
+                self.resolveGoogleAIRequest(id: id, result: ["error": self.googleAIErrorMessage(parsed, statusCode: statusCode)])
                 return
             }
 
-            self.resolveOpenAIRequest(id: id, result: parsed ?? ["error": "OpenAI returned an unreadable response."])
+            self.resolveGoogleAIRequest(id: id, result: parsed ?? ["error": "Google AI returned an unreadable response."])
         }.resume()
     }
 
-    private func resolveOpenAIRequest(id: String, result: [String: Any]) {
+    private func resolveGoogleAIRequest(id: String, result: [String: Any]) {
         DispatchQueue.main.async {
             guard JSONSerialization.isValidJSONObject(result),
                   let data = try? JSONSerialization.data(withJSONObject: result),
@@ -158,17 +160,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
                 return
             }
 
-            self.webView?.evaluateJavaScript("window.__TRADE_REVIEWER_OPENAI_RESOLVE__(\(self.jsonString(id)), \(json));")
+            self.webView?.evaluateJavaScript("window.__TRADE_REVIEWER_GOOGLE_AI_RESOLVE__(\(self.jsonString(id)), \(json));")
         }
     }
 
-    private func openAIErrorMessage(_ payload: [String: Any]?, statusCode: Int) -> String {
+    private func googleAIErrorMessage(_ payload: [String: Any]?, statusCode: Int) -> String {
         if let error = payload?["error"] as? [String: Any],
            let message = error["message"] as? String {
             return message
         }
 
-        return "OpenAI request failed with status \(statusCode)."
+        return "Google AI request failed with status \(statusCode)."
     }
 
     private func jsonString(_ value: String) -> String {

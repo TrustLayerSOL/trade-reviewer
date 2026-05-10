@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fetchAiCoachReview } from './openaiCoach';
+import { fetchAiCoachReview } from './googleAiCoach';
 import type { AiCoachPayload } from '../domain/aiCoach';
 
 const payload: AiCoachPayload = {
@@ -46,35 +46,42 @@ describe('fetchAiCoachReview', () => {
     vi.unstubAllGlobals();
   });
 
-  it('uses the native macOS OpenAI bridge when it is available', async () => {
-    const nativeRequest = vi.fn().mockResolvedValue({ output_text: JSON.stringify(coachJson) });
+  it('uses the native macOS Google AI bridge when it is available', async () => {
+    const nativeRequest = vi.fn().mockResolvedValue({
+      candidates: [{ content: { parts: [{ text: JSON.stringify(coachJson) }] } }]
+    });
     vi.stubGlobal('window', {
-      __TRADE_REVIEWER_OPENAI_REQUEST__: nativeRequest
+      __TRADE_REVIEWER_GOOGLE_AI_REQUEST__: nativeRequest
     });
 
-    const review = await fetchAiCoachReview(payload, 'stored-openai-key');
+    const review = await fetchAiCoachReview(payload, 'stored-google-ai-key');
 
     expect(review).toEqual(coachJson);
     expect(nativeRequest).toHaveBeenCalledWith(expect.objectContaining({
-      model: 'gpt-5.4-mini',
-      text: expect.objectContaining({
-        format: expect.objectContaining({ type: 'json_schema' })
+      contents: expect.any(Array),
+      generationConfig: expect.objectContaining({
+        responseMimeType: 'application/json',
+        responseSchema: expect.objectContaining({ type: 'OBJECT' })
       })
     }));
   });
 
-  it('falls back to the OpenAI Responses API in browser/dev mode', async () => {
+  it('falls back to the Google AI generateContent API in browser/dev mode', async () => {
     const fetch = vi.fn().mockResolvedValue({
       ok: true,
-      json: async () => ({ output_text: JSON.stringify(coachJson) })
+      json: async () => ({
+        candidates: [{ content: { parts: [{ text: JSON.stringify(coachJson) }] } }]
+      })
     });
     vi.stubGlobal('window', {});
     vi.stubGlobal('fetch', fetch);
 
-    const review = await fetchAiCoachReview(payload, 'openai-key');
+    const review = await fetchAiCoachReview(payload, 'google-ai-key');
 
     expect(review.headline).toBe('Good profit, weak journaling');
-    expect(String(fetch.mock.calls[0][0])).toBe('https://api.openai.com/v1/responses');
-    expect(fetch.mock.calls[0][1].headers.Authorization).toBe('Bearer openai-key');
+    expect(String(fetch.mock.calls[0][0])).toBe(
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent'
+    );
+    expect(fetch.mock.calls[0][1].headers['x-goog-api-key']).toBe('google-ai-key');
   });
 });
