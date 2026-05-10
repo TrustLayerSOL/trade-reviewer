@@ -56,4 +56,36 @@ describe('matchCompletedTrades', () => {
     expect(trades[0].exitTime).toBeUndefined();
     expect(trades[0].solReturned).toBe(0);
   });
+
+  it('orders trades with the most recent activity first', () => {
+    const trades = matchCompletedTrades([
+      ...events,
+      {
+        id: 'newer-buy',
+        signature: 'newer-buy',
+        tokenMint: 'MintB',
+        symbol: 'FAST',
+        side: 'buy',
+        timestamp: '2026-05-09T11:00:00.000Z',
+        tokenAmount: 100,
+        solAmount: 0.5,
+        feeSol: 0.01,
+        source: 'csv'
+      },
+      {
+        id: 'newer-sell',
+        signature: 'newer-sell',
+        tokenMint: 'MintB',
+        symbol: 'FAST',
+        side: 'sell',
+        timestamp: '2026-05-09T11:10:00.000Z',
+        tokenAmount: 100,
+        solAmount: 0.65,
+        feeSol: 0.01,
+        source: 'csv'
+      }
+    ]);
+
+    expect(trades.map((trade) => trade.symbol)).toEqual(['FAST', 'MOON']);
+  });
 });

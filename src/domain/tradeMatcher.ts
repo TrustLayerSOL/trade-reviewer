@@ -6,6 +6,7 @@ interface PositionBucket {
   tokenName?: string;
   tokenImageUrl?: string;
   entryTime: string;
+  lastActivityTime: string;
   lastSource: TradeEvent['source'];
   tokenBought: number;
   tokenSold: number;
@@ -26,6 +27,7 @@ export function matchCompletedTrades(events: TradeEvent[]): CompletedTrade[] {
     bucket.tokenName = bucket.tokenName || event.tokenName;
     bucket.tokenImageUrl = bucket.tokenImageUrl || event.tokenImageUrl;
     bucket.lastSource = event.source;
+    bucket.lastActivityTime = event.timestamp;
     bucket.feesSol += event.feeSol;
 
     if (event.side === 'buy') {
@@ -39,7 +41,9 @@ export function matchCompletedTrades(events: TradeEvent[]): CompletedTrade[] {
     }
   }
 
-  return [...buckets.values()].map(toCompletedTrade);
+  return [...buckets.values()]
+    .sort(byRecentActivity)
+    .map(toCompletedTrade);
 }
 
 function createBucket(event: TradeEvent): PositionBucket {
@@ -49,6 +53,7 @@ function createBucket(event: TradeEvent): PositionBucket {
     tokenName: event.tokenName,
     tokenImageUrl: event.tokenImageUrl,
     entryTime: event.timestamp,
+    lastActivityTime: event.timestamp,
     lastSource: event.source,
     tokenBought: 0,
     tokenSold: 0,
@@ -82,6 +87,10 @@ function toCompletedTrade(bucket: PositionBucket): CompletedTrade {
 
 function byTimestamp(a: TradeEvent, b: TradeEvent) {
   return Date.parse(a.timestamp) - Date.parse(b.timestamp);
+}
+
+function byRecentActivity(a: PositionBucket, b: PositionBucket) {
+  return Date.parse(b.lastActivityTime) - Date.parse(a.lastActivityTime);
 }
 
 function round(value: number, decimals = 6) {
