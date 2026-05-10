@@ -13,11 +13,10 @@ import type { TradeEvent } from './domain/trades';
 import { fetchHeliusTransactions } from './services/helius';
 
 const storedKey = 'trade-reviewer-helius-key';
-const envApiKey = import.meta.env.VITE_HELIUS_API_KEY as string | undefined;
 
 export function App() {
   const [walletAddress, setWalletAddress] = useState(defaultWalletAddress);
-  const [apiKey, setApiKeyState] = useState(() => localStorage.getItem(storedKey) ?? envApiKey ?? '');
+  const [apiKey, setApiKeyState] = useState(() => localStorage.getItem(storedKey) ?? '');
   const [events, setEvents] = useState<TradeEvent[]>(sampleEvents);
   const [status, setStatus] = useState('Sample review loaded.');
   const [error, setError] = useState('');
