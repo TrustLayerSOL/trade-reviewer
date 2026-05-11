@@ -32,6 +32,8 @@ export interface AiCoachPayload {
     feesSol: number;
     entryTime: string;
     exitTime?: string;
+    entryReason: string;
+    exitReason: string;
     didRight: string[];
     didWrong: string[];
     nextAction: string;
@@ -60,6 +62,8 @@ export function buildAiCoachPayload(reviews: TradeReview[], summary: ReviewSumma
       feesSol: review.trade.feesSol,
       entryTime: review.trade.entryTime,
       exitTime: review.trade.exitTime,
+      entryReason: review.trade.entryReason,
+      exitReason: review.trade.exitReason,
       didRight: review.didRight,
       didWrong: review.didWrong,
       nextAction: review.nextAction

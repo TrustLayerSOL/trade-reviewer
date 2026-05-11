@@ -32,4 +32,19 @@ describe('App AI trade selection', () => {
     expect(payload.trades).toHaveLength(1);
     expect(payload.trades[0].symbol).toBe('MOON');
   });
+
+  it('sends edited exit reasons to the AI coach', async () => {
+    render(<App />);
+
+    fireEvent.change(screen.getByLabelText('Exit reason for MOON'), {
+      target: { value: 'Sold because the volume died.' }
+    });
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Select MOON for AI review' }));
+    fireEvent.click(screen.getByRole('button', { name: /Review with AI/ }));
+
+    await waitFor(() => expect(fetchAiCoachReview).toHaveBeenCalled());
+
+    const [payload] = vi.mocked(fetchAiCoachReview).mock.calls[0];
+    expect(payload.trades[0].exitReason).toBe('Sold because the volume died.');
+  });
 });

@@ -13,7 +13,7 @@ import { reviewTrade } from './domain/reviewRules';
 import { summarizeReviews } from './domain/summary';
 import { enrichTradeEventsWithMetadata } from './domain/tokenMetadata';
 import { matchCompletedTrades } from './domain/tradeMatcher';
-import type { TradeEvent } from './domain/trades';
+import type { CompletedTrade, TradeEvent } from './domain/trades';
 import { fetchHeliusTransactions } from './services/helius';
 import { fetchAiCoachReview } from './services/googleAiCoach';
 import { fetchTokenMetadata } from './services/tokenMetadata';
@@ -29,6 +29,7 @@ export function App() {
   const [groqApiKey, setGroqApiKeyState] = useState(() => readStoredApiKey('groq'));
   const [events, setEvents] = useState<TradeEvent[]>(sampleEvents);
   const [selectedTradeIds, setSelectedTradeIds] = useState<ReadonlySet<string>>(() => new Set());
+  const [tradeReasons, setTradeReasons] = useState<Record<string, Partial<Pick<CompletedTrade, 'entryReason' | 'exitReason'>>>>({});
   const [aiCoachReview, setAiCoachReview] = useState<AiCoachReview | null>(null);
   const [status, setStatus] = useState('Sample review loaded.');
   const [error, setError] = useState('');
@@ -37,8 +38,11 @@ export function App() {
   const [aiLoading, setAiLoading] = useState(false);
 
   const reviews = useMemo(
-    () => matchCompletedTrades(events).map((trade) => reviewTrade(trade)),
-    [events]
+    () => matchCompletedTrades(events).map((trade) => reviewTrade({
+      ...trade,
+      ...tradeReasons[trade.id]
+    })),
+    [events, tradeReasons]
   );
   const summary = useMemo(() => summarizeReviews(reviews), [reviews]);
   const selectedReviews = useMemo(
@@ -67,6 +71,7 @@ export function App() {
   const replaceEvents = (nextEvents: TradeEvent[], nextStatus: string) => {
     setEvents(nextEvents);
     setSelectedTradeIds(new Set());
+    setTradeReasons({});
     setAiCoachReview(null);
     setAiError('');
     setStatus(nextStatus);
@@ -82,6 +87,18 @@ export function App() {
       }
       return next;
     });
+    setAiCoachReview(null);
+    setAiError('');
+  };
+
+  const setTradeReason = (tradeId: string, field: 'entryReason' | 'exitReason', value: string) => {
+    setTradeReasons((current) => ({
+      ...current,
+      [tradeId]: {
+        ...current[tradeId],
+        [field]: value
+      }
+    }));
     setAiCoachReview(null);
     setAiError('');
   };
@@ -184,6 +201,7 @@ export function App() {
             reviews={reviews}
             selectedTradeIds={selectedTradeIds}
             onTradeSelectionChange={setTradeSelected}
+            onTradeReasonChange={setTradeReason}
           />
         </div>
       </div>

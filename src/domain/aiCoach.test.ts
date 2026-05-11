@@ -57,4 +57,22 @@ describe('buildAiCoachPayload', () => {
     });
     expect(JSON.stringify(payload)).not.toContain('MintA');
   });
+
+  it('includes trader entry and exit reasons for selected trade coaching', () => {
+    const payload = buildAiCoachPayload([
+      {
+        ...review,
+        trade: {
+          ...review.trade,
+          entryReason: 'Bought because volume was accelerating.',
+          exitReason: 'Sold because momentum stalled.'
+        }
+      }
+    ], summary);
+
+    expect(payload.trades[0]).toMatchObject({
+      entryReason: 'Bought because volume was accelerating.',
+      exitReason: 'Sold because momentum stalled.'
+    });
+  });
 });

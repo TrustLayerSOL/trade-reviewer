@@ -4,9 +4,15 @@ interface TradeReviewListProps {
   reviews: TradeReview[];
   selectedTradeIds?: ReadonlySet<string>;
   onTradeSelectionChange?: (tradeId: string, selected: boolean) => void;
+  onTradeReasonChange?: (tradeId: string, field: 'entryReason' | 'exitReason', value: string) => void;
 }
 
-export function TradeReviewList({ reviews, selectedTradeIds, onTradeSelectionChange }: TradeReviewListProps) {
+export function TradeReviewList({
+  reviews,
+  selectedTradeIds,
+  onTradeSelectionChange,
+  onTradeReasonChange
+}: TradeReviewListProps) {
   if (reviews.length === 0) {
     return (
       <section className="empty-state">
@@ -69,6 +75,28 @@ export function TradeReviewList({ reviews, selectedTradeIds, onTradeSelectionCha
             <ReviewColumn title="Right" items={review.didRight} />
             <ReviewColumn title="Wrong" items={review.didWrong.length ? review.didWrong : ['No major mistake found in the available data.']} />
           </div>
+          {onTradeReasonChange ? (
+            <div className="trade-reasons">
+              <label>
+                <span>Entry reason</span>
+                <textarea
+                  value={review.trade.entryReason}
+                  aria-label={`Entry reason for ${displayName}`}
+                  rows={2}
+                  onChange={(event) => onTradeReasonChange(review.trade.id, 'entryReason', event.currentTarget.value)}
+                />
+              </label>
+              <label>
+                <span>Exit reason</span>
+                <textarea
+                  value={review.trade.exitReason}
+                  aria-label={`Exit reason for ${displayName}`}
+                  rows={2}
+                  onChange={(event) => onTradeReasonChange(review.trade.id, 'exitReason', event.currentTarget.value)}
+                />
+              </label>
+            </div>
+          ) : null}
           <p className="next-action">{review.nextAction}</p>
         </article>
         );

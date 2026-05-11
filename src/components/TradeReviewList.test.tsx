@@ -74,4 +74,24 @@ describe('TradeReviewList', () => {
 
     expect(onSelectionChange).toHaveBeenCalledWith('mint-a', true);
   });
+
+  it('lets entry and exit reasons be edited', () => {
+    const onTradeReasonChange = vi.fn();
+    render(
+      <TradeReviewList
+        reviews={[baseReview]}
+        onTradeReasonChange={onTradeReasonChange}
+      />
+    );
+
+    fireEvent.change(screen.getByLabelText('Entry reason for Moon Runner'), {
+      target: { value: 'Bought because volume was accelerating.' }
+    });
+    fireEvent.change(screen.getByLabelText('Exit reason for Moon Runner'), {
+      target: { value: 'Sold because momentum stalled.' }
+    });
+
+    expect(onTradeReasonChange).toHaveBeenCalledWith('mint-a', 'entryReason', 'Bought because volume was accelerating.');
+    expect(onTradeReasonChange).toHaveBeenCalledWith('mint-a', 'exitReason', 'Sold because momentum stalled.');
+  });
 });

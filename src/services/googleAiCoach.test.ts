@@ -24,6 +24,8 @@ const payload: AiCoachPayload = {
       feesSol: 0.01,
       entryTime: '2026-05-09T10:00:00.000Z',
       exitTime: '2026-05-09T10:20:00.000Z',
+      entryReason: '',
+      exitReason: '',
       didRight: ['Took profit.'],
       didWrong: [],
       nextAction: 'Repeat it.'

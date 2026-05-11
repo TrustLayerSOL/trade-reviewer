@@ -19,7 +19,8 @@ body {
 }
 
 button,
-input {
+input,
+textarea {
   font: inherit;
 }
 
@@ -132,14 +133,25 @@ h1 {
   font-weight: 700;
 }
 
-input {
+input,
+textarea {
   width: 100%;
-  min-height: 42px;
   border: 1px solid #cfc6b6;
   border-radius: 8px;
-  padding: 0 11px;
   color: #17201b;
   background: #fffaf0;
+}
+
+input {
+  min-height: 42px;
+  padding: 0 11px;
+}
+
+textarea {
+  min-height: 68px;
+  resize: vertical;
+  padding: 10px 11px;
+  line-height: 1.4;
 }
 
 input[type="checkbox"] {
@@ -386,6 +398,24 @@ input[type="checkbox"] {
   font-size: 0.92rem;
 }
 
+.trade-reasons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.trade-reasons label {
+  display: grid;
+  gap: 7px;
+}
+
+.trade-reasons span {
+  color: #526057;
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
 ul {
   margin: 0;
   padding-left: 19px;
@@ -417,7 +447,8 @@ ul {
   .ai-coach-header,
   .summary-grid,
   .trade-numbers,
-  .review-columns {
+  .review-columns,
+  .trade-reasons {
     grid-template-columns: 1fr;
   }
 
