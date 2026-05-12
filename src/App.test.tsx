@@ -18,6 +18,7 @@ vi.mock('./services/googleAiCoach', () => ({
 describe('App AI trade selection', () => {
   beforeEach(() => {
     vi.mocked(fetchAiCoachReview).mockClear();
+    vi.stubGlobal('localStorage', createMemoryStorage());
   });
 
   it('sends only selected trades to the AI coach', async () => {
@@ -47,4 +48,45 @@ describe('App AI trade selection', () => {
     const [payload] = vi.mocked(fetchAiCoachReview).mock.calls[0];
     expect(payload.trades[0].exitReason).toBe('Sold because the volume died.');
   });
+
+  it('keeps edited trade reasons after the app is reopened', () => {
+    const { unmount } = render(<App />);
+
+    fireEvent.change(screen.getByLabelText('Exit reason for MOON'), {
+      target: { value: 'Sold because the volume died.' }
+    });
+    unmount();
+
+    render(<App />);
+
+    expect(screen.getByLabelText<HTMLInputElement>('Exit reason for MOON').value).toBe('Sold because the volume died.');
+  });
+
+  it('keeps edited trade reasons when the same trades are loaded again', () => {
+    render(<App />);
+
+    fireEvent.change(screen.getByLabelText('Exit reason for MOON'), {
+      target: { value: 'Sold because the volume died.' }
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Sample' }));
+
+    expect(screen.getByLabelText<HTMLInputElement>('Exit reason for MOON').value).toBe('Sold because the volume died.');
+  });
 });
+
+function createMemoryStorage() {
+  const values = new Map<string, string>();
+
+  return {
+    getItem: (key: string) => values.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      values.set(key, value);
+    },
+    removeItem: (key: string) => {
+      values.delete(key);
+    },
+    clear: () => {
+      values.clear();
+    }
+  };
+}

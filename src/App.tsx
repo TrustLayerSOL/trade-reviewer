@@ -21,6 +21,10 @@ import { fetchTokenMetadata } from './services/tokenMetadata';
 const heliusStoredKey = 'trade-reviewer-helius-key';
 const googleAiStoredKey = 'trade-reviewer-google-ai-key';
 const groqStoredKey = 'trade-reviewer-groq-key';
+const tradeReasonsStoredKey = 'trade-reviewer-trade-reasons';
+
+type TradeReasonField = 'entryReason' | 'exitReason';
+type TradeReasonMap = Record<string, Partial<Pick<CompletedTrade, TradeReasonField>>>;
 
 export function App() {
   const [walletAddress, setWalletAddress] = useState(defaultWalletAddress);
@@ -29,7 +33,7 @@ export function App() {
   const [groqApiKey, setGroqApiKeyState] = useState(() => readStoredApiKey('groq'));
   const [events, setEvents] = useState<TradeEvent[]>(sampleEvents);
   const [selectedTradeIds, setSelectedTradeIds] = useState<ReadonlySet<string>>(() => new Set());
-  const [tradeReasons, setTradeReasons] = useState<Record<string, Partial<Pick<CompletedTrade, 'entryReason' | 'exitReason'>>>>({});
+  const [tradeReasons, setTradeReasons] = useState<TradeReasonMap>(() => readStoredTradeReasons());
   const [aiCoachReview, setAiCoachReview] = useState<AiCoachReview | null>(null);
   const [status, setStatus] = useState('Sample review loaded.');
   const [error, setError] = useState('');
@@ -40,9 +44,9 @@ export function App() {
   const reviews = useMemo(
     () => matchCompletedTrades(events).map((trade) => reviewTrade({
       ...trade,
-      ...tradeReasons[trade.id]
+      ...tradeReasons[tradeReasonKey(walletAddress, trade.id)]
     })),
-    [events, tradeReasons]
+    [events, tradeReasons, walletAddress]
   );
   const summary = useMemo(() => summarizeReviews(reviews), [reviews]);
   const selectedReviews = useMemo(
@@ -71,7 +75,6 @@ export function App() {
   const replaceEvents = (nextEvents: TradeEvent[], nextStatus: string) => {
     setEvents(nextEvents);
     setSelectedTradeIds(new Set());
-    setTradeReasons({});
     setAiCoachReview(null);
     setAiError('');
     setStatus(nextStatus);
@@ -91,14 +94,19 @@ export function App() {
     setAiError('');
   };
 
-  const setTradeReason = (tradeId: string, field: 'entryReason' | 'exitReason', value: string) => {
-    setTradeReasons((current) => ({
-      ...current,
-      [tradeId]: {
-        ...current[tradeId],
-        [field]: value
-      }
-    }));
+  const setTradeReason = (tradeId: string, field: TradeReasonField, value: string) => {
+    setTradeReasons((current) => {
+      const reasonKey = tradeReasonKey(walletAddress, tradeId);
+      const next = {
+        ...current,
+        [reasonKey]: {
+          ...current[reasonKey],
+          [field]: value
+        }
+      };
+      writeStoredTradeReasons(next);
+      return next;
+    });
     setAiCoachReview(null);
     setAiError('');
   };
@@ -247,4 +255,46 @@ function localStorageKey(key: 'helius' | 'googleAi' | 'groq') {
   if (key === 'helius') return heliusStoredKey;
   if (key === 'googleAi') return googleAiStoredKey;
   return groqStoredKey;
+}
+
+function readStoredTradeReasons(): TradeReasonMap {
+  try {
+    const stored = localStorage.getItem(tradeReasonsStoredKey);
+    if (!stored) return {};
+    const parsed = JSON.parse(stored);
+    if (!isRecord(parsed)) return {};
+
+    return Object.fromEntries(
+      Object.entries(parsed)
+        .filter(([, value]) => isRecord(value))
+        .map(([tradeId, value]) => {
+          const reason = value as Record<string, unknown>;
+          return [
+            tradeId,
+            {
+              entryReason: typeof reason.entryReason === 'string' ? reason.entryReason : '',
+              exitReason: typeof reason.exitReason === 'string' ? reason.exitReason : ''
+            }
+          ];
+        })
+    );
+  } catch {
+    return {};
+  }
+}
+
+function writeStoredTradeReasons(tradeReasons: TradeReasonMap) {
+  try {
+    localStorage.setItem(tradeReasonsStoredKey, JSON.stringify(tradeReasons));
+  } catch {
+    // Notes are still kept for the current session when persistence is unavailable.
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function tradeReasonKey(walletAddress: string, tradeId: string) {
+  return `${walletAddress.trim() || 'default-wallet'}:${tradeId}`;
 }
